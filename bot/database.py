@@ -22,6 +22,7 @@ def init_db():
     conn.close()
     print("База даних ініціалізована!")
 
+
 def start_shift(user_id):
     """Записує початок зміни з днем тижня."""
     conn = sqlite3.connect(DB_NAME)
@@ -37,6 +38,62 @@ def start_shift(user_id):
     conn.commit()
     conn.close()
     return start_time, start_day
+
+def pause_shift(user_id):
+    """Призупиняє зміну, зберігаючи час паузи."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Перевіряємо, чи є активна зміна
+    cursor.execute("SELECT id, pause_time FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
+    shift = cursor.fetchone()
+
+    if shift:
+        shift_id, pause_time = shift
+
+        # Якщо пауза вже є, повертаємо помилку
+        if pause_time is not None:
+            conn.close()
+            return None
+
+        # Записуємо час початку паузи
+        pause_time = int(datetime.now())
+        cursor.execute("UPDATE shifts SET pause_time = ? WHERE id = ?", (pause_time, shift_id))
+        conn.commit()
+        conn.close()
+        return pause_time
+    else:
+        conn.close()
+        return None
+    
+def resume_shift(user_id):
+    """Продовжує зміну, обчислюючи загальний час паузи."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Перевіряємо, чи є зміна на паузі
+    cursor.execute("SELECT id, pause_time FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
+    shift = cursor.fetchone()
+
+    if shift:
+        shift_id, pause_time = shift
+
+        # Якщо немає паузи – повертаємо помилку
+        if pause_time is None:
+            conn.close()
+            return None
+
+        # Обчислюємо тривалість паузи
+        pause_duration = int(datetime.now()) - pause_time
+
+        # Додаємо до загального часу роботи
+        cursor.execute("UPDATE shifts SET pause_time = NULL WHERE id = ?", (shift_id,))
+        conn.commit()
+        conn.close()
+        return pause_duration
+    else:
+        conn.close()
+        return None
 
 def end_shift(user_id):
     """Фіксуємо завершення останньої зміни."""
@@ -79,3 +136,20 @@ def count_shifts(user_id):
 
     conn.close()
     return count
+
+def delete_last_shift(user_id):
+    """Видаляє останню зміну користувача."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT id FROM shifts WHERE user_id = ? ORDER BY start_time DESC LIMIT 1", (user_id,))
+    last_shift = cursor.fetchone()
+    
+    if last_shift:
+        cursor.execute("DELETE FROM shifts WHERE id = ?", (last_shift[0],))
+        conn.commit()
+        conn.close()
+        return True
+    else:
+        conn.close()
+        return False
