@@ -57,7 +57,7 @@ def pause_shift(user_id):
             return None
 
         # Записуємо час початку паузи
-        pause_time = int(datetime.now())
+        pause_time = datetime.now()
         cursor.execute("UPDATE shifts SET pause_time = ? WHERE id = ?", (pause_time, shift_id))
         conn.commit()
         conn.close()
@@ -84,7 +84,7 @@ def resume_shift(user_id):
             return None
 
         # Обчислюємо тривалість паузи
-        pause_duration = int(datetime.now()) - pause_time
+        pause_duration = datetime.now() - pause_time
 
         # Додаємо до загального часу роботи
         cursor.execute("UPDATE shifts SET pause_time = NULL WHERE id = ?", (shift_id,))
