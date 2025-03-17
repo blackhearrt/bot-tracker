@@ -96,22 +96,46 @@ def resume_shift(user_id):
         return None
 
 def end_shift(user_id):
-    """Фіксуємо завершення останньої зміни."""
+    """Фіксуємо завершення останньої зміни та повертаємо її деталі."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     now = datetime.now()
     end_time = now.strftime("%Y-%m-%d %H:%M:%S")
 
+    # Оновлюємо час завершення зміни
     cursor.execute("""
         UPDATE shifts 
         SET end_time = ?
         WHERE user_id = ? AND end_time IS NULL
     """, (end_time, user_id))
 
+    # Отримуємо start_time для цієї ж зміни
+    cursor.execute("""
+        SELECT start_time FROM shifts
+        WHERE user_id = ? AND end_time = ?
+    """, (user_id, end_time))
+    
+    result = cursor.fetchone()
+    if result and result[0]:
+        start_time = result[0]
+
+        # **Перевіряємо формат start_time**
+        if len(start_time) == 8:  # Формат HH:MM:SS
+            start_time = f"{now.strftime('%Y-%m-%d')} {start_time}"  # Додаємо поточну дату
+
+        start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+        end_dt = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+        total_time = (end_dt - start_dt).seconds  # Отримуємо тривалість у секундах
+    else:
+        start_time = "❌ Немає даних"
+        total_time = 0  # Безпечне значення, щоб уникнути помилки
+
     conn.commit()
     conn.close()
-    return end_time 
+
+    return start_time, end_time, total_time
+
 def get_shifts(user_id):
     """Отримуємо список змін користувача."""
     conn = sqlite3.connect(DB_NAME)

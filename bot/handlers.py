@@ -21,9 +21,9 @@ async def back_button_handler(message: Message, state: FSMContext):
     previous_menu = user_data.get("previous_menu", "main")
 
     if previous_menu == "main":
-        await message.answer("🏠 Головне меню", reply_markup=main_menu())
+        await message.answer("🏠 Головне меню", reply_markup=main_menu)
     elif previous_menu == "shift":
-        await message.answer("🔄 Меню зміни", reply_markup=active_shift_menu())
+        await message.answer("🔄 Меню зміни", reply_markup=active_shift_menu)
     
     # Оновлюємо історію, щоб при наступному "Назад" не повертатися в той самий пункт
     await state.update_data(previous_menu="main")
@@ -69,9 +69,19 @@ async def end_shift_handler(message: types.Message, state: FSMContext):
     """Завершує зміну."""
     user_id = message.from_user.id
     shift_info = end_shift(user_id)
+    if len(shift_info) != 3:
+        print(f"Помилка: очікувалося 3 значення, отримано {len(shift_info)} - {shift_info}")
+    else:
+        start_time, end_time, total_time = shift_info
     
     if shift_info:
+        print("shift_info містить:", len(shift_info), "елементів:", shift_info)
+        print("DEBUG shift_info:", shift_info)
         start_time, end_time, total_time = shift_info
+        if total_time is None:
+            total_time_str = "❌ Немає даних"
+        else:
+            total_time_str = f"{total_time // 60} хвилин"
         await state.update_data(previous_menu="shift")
         await message.answer(
             f"✅ Зміна завершена!\n"
