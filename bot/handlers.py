@@ -96,7 +96,10 @@ async def end_shift_handler(message: types.Message, state: FSMContext):
     start_time, end_time, total_time, pause_time = shift_info
 
     # Форматуємо час початку і завершення зміни
-    start_dt = datetime.strptime(start_time, "%d-%m-%Y %H:%M:%S")
+    if len(start_time) == 8:  # Якщо тільки час (наприклад, '14:49:44')
+        start_time = datetime.now().strftime("%Y-%m-%d") + " " + start_time  # Додаємо сьогоднішню дату
+
+    start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
     end_dt = datetime.strptime(end_time, "%d-%m-%Y %H:%M:%S")
 
     formatted_start = start_dt.strftime("%d.%m.%Y о %H:%M")
