@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 DB_NAME = "tracker.db"
 
@@ -57,7 +57,7 @@ def pause_shift(user_id):
             return None
 
         # Записуємо час початку паузи
-        pause_time = datetime.now()
+        pause_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute("UPDATE shifts SET pause_time = ? WHERE id = ?", (pause_time, shift_id))
         conn.commit()
         conn.close()
@@ -67,30 +67,43 @@ def pause_shift(user_id):
         return None
     
 def resume_shift(user_id):
-    """Продовжує зміну, обчислюючи загальний час паузи."""
+    """Продовжує зміну, обчислюючи загальний час паузи та коригуючи початок зміни."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Перевіряємо, чи є зміна на паузі
-    cursor.execute("SELECT id, pause_time FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
+    # Отримуємо ID зміни, час початку, день початку та час паузи
+    cursor.execute("SELECT id, start_time, start_day, pause_time FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
     shift = cursor.fetchone()
 
     if shift:
-        shift_id, pause_time = shift
+        shift_id, start_time, start_day, pause_time = shift
 
-        # Якщо немає паузи – повертаємо помилку
+        # Якщо паузи немає – повертаємо None
         if pause_time is None:
             conn.close()
             return None
 
+        # **Формуємо правильний start_time**
+        if len(start_time) == 8:  # Формат HH:MM:SS, треба додати дату
+            start_time = f"{start_day} {start_time}"
+
+        # Конвертуємо строки в datetime
+        start_time = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+        pause_time = datetime.strptime(pause_time, "%Y-%m-%d %H:%M:%S")
+
         # Обчислюємо тривалість паузи
         pause_duration = datetime.now() - pause_time
 
-        # Додаємо до загального часу роботи
-        cursor.execute("UPDATE shifts SET pause_time = NULL WHERE id = ?", (shift_id,))
+        # **Коригуємо початковий час зміни**
+        corrected_start_time = start_time + pause_duration
+
+        # Оновлюємо базу: прибираємо паузу, оновлюємо початок зміни
+        cursor.execute("UPDATE shifts SET pause_time = NULL, start_time = ? WHERE id = ?", 
+                       (corrected_start_time.strftime("%H:%M:%S"), shift_id))
         conn.commit()
         conn.close()
-        return pause_duration
+        
+        return str(pause_duration).split(".")[0]
     else:
         conn.close()
         return None
@@ -110,19 +123,19 @@ def end_shift(user_id):
         WHERE user_id = ? AND end_time IS NULL
     """, (end_time, user_id))
 
-    # Отримуємо start_time для цієї ж зміни
+    # Отримуємо start_time і start_day
     cursor.execute("""
-        SELECT start_time FROM shifts
+        SELECT start_time, start_day FROM shifts
         WHERE user_id = ? AND end_time = ?
     """, (user_id, end_time))
     
     result = cursor.fetchone()
     if result and result[0]:
-        start_time = result[0]
+        start_time, start_day = result
 
         # **Перевіряємо формат start_time**
         if len(start_time) == 8:  # Формат HH:MM:SS
-            start_time = f"{now.strftime('%Y-%m-%d')} {start_time}"  # Додаємо поточну дату
+            start_time = f"{start_day} {start_time}"  # Додаємо дату
 
         start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
         end_dt = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")

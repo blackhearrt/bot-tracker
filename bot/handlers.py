@@ -53,14 +53,21 @@ async def pause_shift_handler(message: types.Message):
 
 @router.message(F.text == "▶️ Продовжити зміну")
 async def resume_shift_handler(message: types.Message):
-    """Продовжує зміну після паузи."""
     user_id = message.from_user.id
-    total_pause_time = resume_shift(user_id)
-    
-    if total_pause_time is not None:
-        await message.answer(f"▶️ Зміна відновлена! Загальний час пауз: {total_pause_time // 60} хвилин.", reply_markup=active_shift_menu)
+    total_pause_time = resume_shift(user_id)  # Отримуємо тривалість паузи
+
+    if total_pause_time:
+        h, m, s = map(int, total_pause_time.split(":"))
+        total_pause_seconds = h * 3600 + m * 60 + s  # Переводимо в секунди
+        total_pause_minutes = total_pause_seconds // 60  # Конвертуємо в хвилини
+       
+        
+        await message.answer(
+            f"▶️ Зміна відновлена! Загальний час паузи: {total_pause_minutes} хвилин.",
+            reply_markup=active_shift_menu
+        )
     else:
-        await message.answer("❌ Ви не призупиняли зміну або вона вже триває!")
+        await message.answer("⚠️ Помилка: немає активної зміни або зміна не була на паузі.")
 
 
 
