@@ -42,14 +42,19 @@ async def start_shift_handler(message: types.Message, state: FSMContext):
 
 @router.message(F.text == "⏸ Призупинити зміну")
 async def pause_shift_handler(message: types.Message):
-    """Призупиняє зміну."""
     user_id = message.from_user.id
-    pause_time = pause_shift(user_id)
-    
+    pause_time = pause_shift(user_id)  # Отримуємо поточний час
+
     if pause_time:
-        await message.answer(f"⏸ Зміна призупинена о {pause_time}.", reply_markup=paused_shift_menu)
+        dt = datetime.strptime(pause_time, "%Y-%m-%d %H:%M:%S")  # Перетворюємо рядок у datetime
+        formatted_time = dt.strftime("%H:%M, %d.%m.%Y")  # Форматування в "час, дата"
+
+        await message.answer(
+            f"⏸️ Зміна призупинена о {formatted_time}.",
+            reply_markup=paused_shift_menu
+        )
     else:
-        await message.answer("❌ У вас немає активної зміни або зміна вже призупинена!")
+        await message.answer("⚠️ Помилка: зміна не була активною або вже на паузі.")
 
 @router.message(F.text == "▶️ Продовжити зміну")
 async def resume_shift_handler(message: types.Message):
@@ -59,11 +64,16 @@ async def resume_shift_handler(message: types.Message):
     if total_pause_time:
         h, m, s = map(int, total_pause_time.split(":"))
         total_pause_seconds = h * 3600 + m * 60 + s  # Переводимо в секунди
-        total_pause_minutes = total_pause_seconds // 60  # Конвертуємо в хвилини
-       
-        
+
+        if total_pause_seconds >= 60 and total_pause_seconds < 3600:
+            time_text = f"{total_pause_seconds // 60} хвилин {total_pause_seconds % 60} секунд"
+        elif total_pause_seconds >= 3600:
+            time_text = f"{total_pause_seconds // 3600} годин {total_pause_seconds % 3600 // 60} хвилин {total_pause_seconds % 60} секунд"
+        else:
+            time_text = f"{total_pause_seconds} секунд"
+
         await message.answer(
-            f"▶️ Зміна відновлена! Загальний час паузи: {total_pause_minutes} хвилин.",
+            f"▶️ Зміна відновлена! Загальний час паузи: {time_text}.",
             reply_markup=active_shift_menu
         )
     else:
@@ -72,33 +82,62 @@ async def resume_shift_handler(message: types.Message):
 
 
 @router.message(F.text == "✅ Завершити зміну")
+@router.message(F.text == "✅ Завершити зміну")
 async def end_shift_handler(message: types.Message, state: FSMContext):
-    """Завершує зміну."""
+    """Завершує зміну з урахуванням пауз."""
     user_id = message.from_user.id
-    shift_info = end_shift(user_id)
-    if len(shift_info) != 3:
-        print(f"Помилка: очікувалося 3 значення, отримано {len(shift_info)} - {shift_info}")
-    else:
-        start_time, end_time, total_time = shift_info
+    shift_info = end_shift(user_id)  # Отримуємо дані про зміну
     
-    if shift_info:
-        print("shift_info містить:", len(shift_info), "елементів:", shift_info)
-        print("DEBUG shift_info:", shift_info)
-        start_time, end_time, total_time = shift_info
-        if total_time is None:
-            total_time_str = "❌ Немає даних"
-        else:
-            total_time_str = f"{total_time // 60} хвилин"
-        await state.update_data(previous_menu="shift")
-        await message.answer(
-            f"✅ Зміна завершена!\n"
-            f"🕰 Початок: {start_time}\n"
-            f"🏁 Кінець: {end_time}\n"
-            f"⏳ Загальна тривалість: {total_time // 60} хвилин.",
-            reply_markup=main_menu
-        )
-    else:
+    if not shift_info or len(shift_info) != 4:
+        print(f"Помилка: очікувалося 4 значення, отримано {len(shift_info)} - {shift_info}")
         await message.answer("❌ У вас немає активної зміни!", reply_markup=main_menu)
+        return
+
+    start_time, end_time, total_time, pause_time = shift_info
+
+    # Форматуємо час початку і завершення зміни
+    start_dt = datetime.strptime(start_time, "%d-%m-%Y %H:%M:%S")
+    end_dt = datetime.strptime(end_time, "%d-%m-%Y %H:%M:%S")
+
+    formatted_start = start_dt.strftime("%d.%m.%Y о %H:%M")
+    formatted_end = end_dt.strftime("%d.%m.%Y о %H:%M")
+
+    # Загальний час зміни без урахування пауз
+    total_seconds = int((end_dt - start_dt).total_seconds() - pause_time)
+
+    # Форматуємо тривалість зміни
+    def format_duration(seconds):
+        if seconds < 60:
+            return f"{seconds} секунд"
+        elif seconds < 3600:
+            minutes = seconds // 60
+            seconds %= 60
+            return f"{minutes} хв {seconds} сек"
+        elif seconds < 86400:
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            seconds %= 60
+            return f"{hours} год {minutes} хв {seconds} сек"
+        else:
+            days = seconds // 86400
+            hours = (seconds % 86400) // 3600
+            minutes = (seconds % 3600) // 60
+            seconds %= 60
+            return f"{days} д {hours} год {minutes} хв {seconds} сек"
+
+    total_time_str = format_duration(total_seconds)
+    pause_time_str = format_duration(pause_time)
+
+    # Оновлюємо стан і відправляємо повідомлення
+    await state.update_data(previous_menu="shift")
+    await message.answer(
+        f"✅ Зміна завершена!\n"
+        f"🕰 Початок: {formatted_start}\n"
+        f"🏁 Кінець: {formatted_end}\n"
+        f"⏳ Чистий робочий час: {total_time_str}.\n"
+        f"⏸ Загальний час у паузі: {pause_time_str}.",
+        reply_markup=main_menu
+    )
 
 @router.message(F.text == "📊 Переглянути зміни")
 async def shifts_handler(message: types.Message, state: FSMContext):
