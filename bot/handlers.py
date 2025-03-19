@@ -82,14 +82,13 @@ async def resume_shift_handler(message: types.Message):
 
 
 @router.message(F.text == "✅ Завершити зміну")
-@router.message(F.text == "✅ Завершити зміну")
 async def end_shift_handler(message: types.Message, state: FSMContext):
     """Завершує зміну з урахуванням пауз."""
     user_id = message.from_user.id
     shift_info = end_shift(user_id)  # Отримуємо дані про зміну
     
-    if not shift_info or len(shift_info) != 4:
-        print(f"Помилка: очікувалося 4 значення, отримано {len(shift_info)} - {shift_info}")
+    if not shift_info or not isinstance(shift_info, tuple) or len(shift_info) != 4:
+        print(f"Помилка: очікувалося 4 значення, отримано {len(shift_info) if shift_info else 'None'} - {shift_info}")
         await message.answer("❌ У вас немає активної зміни!", reply_markup=main_menu)
         return
 
