@@ -40,70 +40,77 @@ def start_shift(user_id):
     return start_time, start_day
 
 def pause_shift(user_id):
-    """Призупиняє зміну, зберігаючи час паузи."""
+    """Призупиняє зміну, додаючи запис про початок паузи в таблицю pauses."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     # Перевіряємо, чи є активна зміна
-    cursor.execute("SELECT id, pause_time FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
+    cursor.execute("SELECT id FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
     shift = cursor.fetchone()
 
-    if shift:
-        shift_id, pause_time = shift
-
-        # Якщо пауза вже є, повертаємо помилку
-        if pause_time is not None:
-            conn.close()
-            return None
-
-        # Записуємо час початку паузи
-        pause_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cursor.execute("UPDATE shifts SET pause_time = ? WHERE id = ?", (pause_time, shift_id))
-        conn.commit()
+    if not shift:
         conn.close()
-        return pause_time
-    else:
+        return None  # Немає активної зміни
+
+    shift_id = shift[0]
+
+    # Перевіряємо, чи вже є незавершена пауза
+    cursor.execute("SELECT id FROM pauses WHERE shift_id = ? AND pause_end IS NULL", (shift_id,))
+    existing_pause = cursor.fetchone()
+
+    if existing_pause:
         conn.close()
-        return None
+        return None  # Уже є активна пауза
+
+    # Записуємо початок паузи
+    pause_start = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("INSERT INTO pauses (shift_id, pause_start) VALUES (?, ?)", (shift_id, pause_start))
     
+    conn.commit()
+    conn.close()
+
+    return pause_start
+
+
 def resume_shift(user_id):
-    """Продовжує зміну, обчислюючи загальний час паузи та коригуючи початок зміни."""
+    """Продовжує зміну, додаючи час завершення паузи та підраховуючи її тривалість."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Отримуємо ID зміни, час початку, день початку та час паузи
-    cursor.execute("SELECT id, start_time, start_day, pause_time FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
+    # Отримуємо ID зміни
+    cursor.execute("SELECT id FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
     shift = cursor.fetchone()
 
-    if shift:
-        shift_id, start_time, start_day, pause_time = shift
-
-        # Якщо паузи немає – повертаємо None
-        if pause_time is None:
-            conn.close()
-            return None
-
-        # **Формуємо правильний start_time**
-        start_datetime_str = f"{start_day} {start_time}"
-        start_dt = datetime.strptime(start_datetime_str, "%Y-%m-%d %H:%M:%S")
-        pause_dt = datetime.strptime(pause_time, "%Y-%m-%d %H:%M:%S")
-
-        # Обчислюємо тривалість паузи
-        pause_duration = datetime.now() - pause_dt
-
-        # **Коригуємо початковий час зміни**
-        corrected_start_time = start_dt + pause_duration
-
-        # Оновлюємо базу: прибираємо паузу, оновлюємо початок зміни
-        cursor.execute("UPDATE shifts SET pause_time = NULL, start_time = ? WHERE id = ?", 
-                       (corrected_start_time.strftime("%H:%M:%S"), shift_id))
-        conn.commit()
+    if not shift:
         conn.close()
-        
-        return str(pause_duration).split(".")[0]
-    else:
+        return None  # Немає активної зміни
+
+    shift_id = shift[0]
+
+    # Отримуємо останню активну паузу (без записаного pause_end)
+    cursor.execute("SELECT id, pause_start FROM pauses WHERE shift_id = ? AND pause_end IS NULL", (shift_id,))
+    pause = cursor.fetchone()
+
+    if not pause:
         conn.close()
-        return None
+        return None  # Немає активної паузи
+
+    pause_id, pause_start = pause
+
+    # Підраховуємо тривалість паузи
+    pause_end = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    pause_start_dt = datetime.strptime(pause_start, "%Y-%m-%d %H:%M:%S")
+    pause_end_dt = datetime.strptime(pause_end, "%Y-%m-%d %H:%M:%S")
+    pause_duration = int((pause_end_dt - pause_start_dt).total_seconds())
+
+    # Оновлюємо запис у pauses
+    cursor.execute("UPDATE pauses SET pause_end = ?, pause_duration = ? WHERE id = ?",
+                   (pause_end, pause_duration, pause_id))
+
+    conn.commit()
+    conn.close()
+
+    return pause_duration  # Повертаємо тривалість паузи в секундах
 
 
 def end_shift(user_id):
@@ -111,9 +118,9 @@ def end_shift(user_id):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Отримуємо дату та час початку зміни
+    # Отримуємо shift_id, start_day, start_time для активної зміни
     cursor.execute(
-        "SELECT start_day, start_time FROM shifts WHERE user_id = ? AND end_time IS NULL",
+        "SELECT id, start_day, start_time FROM shifts WHERE user_id = ? AND end_time IS NULL",
         (user_id,)
     )
     result = cursor.fetchone()
@@ -122,7 +129,7 @@ def end_shift(user_id):
         conn.close()
         return None
 
-    start_day, start_time = result  # Розпаковуємо результат (дата, час)
+    shift_id, start_day, start_time = result  # Додаємо shift_id
     end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Об'єднуємо дату та час у правильному форматі
@@ -133,10 +140,18 @@ def end_shift(user_id):
     # Підраховуємо загальний час зміни
     total_time = int((end_dt - start_dt).total_seconds())
 
+    # Підраховуємо загальний час пауз із таблиці `pauses`
+    cursor.execute(
+        "SELECT SUM(pause_duration) FROM pauses WHERE shift_id = ?",
+        (shift_id,)
+    )
+    pause_time = cursor.fetchone()[0]
+    pause_time = int(pause_time) if pause_time else 0  # Якщо пауз не було, то 0
+
     # Закриваємо зміну
     cursor.execute(
-        "UPDATE shifts SET end_time = ?, total_time = ? WHERE user_id = ? AND start_day = ? AND start_time = ?",
-        (end_time, total_time, user_id, start_day, start_time)
+        "UPDATE shifts SET end_time = ?, total_time = ?, pause_time = ? WHERE id = ?",
+        (end_time, total_time, pause_time, shift_id)
     )
 
     conn.commit()
@@ -146,7 +161,7 @@ def end_shift(user_id):
     start_dt_formatted = start_dt.strftime("%d.%m.%Y о %H:%M:%S")
     end_dt_formatted = end_dt.strftime("%d.%m.%Y о %H:%M:%S")
 
-    return start_dt_formatted, end_dt_formatted, total_time
+    return start_dt_formatted, end_dt_formatted, total_time, pause_time
 
 def get_shifts(user_id):
     """Отримуємо список змін користувача."""

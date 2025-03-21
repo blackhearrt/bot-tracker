@@ -43,11 +43,11 @@ async def start_shift_handler(message: types.Message, state: FSMContext):
 @router.message(F.text == "⏸ Призупинити зміну")
 async def pause_shift_handler(message: types.Message):
     user_id = message.from_user.id
-    pause_time = pause_shift(user_id)  # Отримуємо поточний час
+    pause_time = pause_shift(user_id)  # Записуємо початок паузи
 
     if pause_time:
-        dt = datetime.strptime(pause_time, "%Y-%m-%d %H:%M:%S")  # Перетворюємо рядок у datetime
-        formatted_time = dt.strftime("%H:%M, %d.%m.%Y")  # Форматування в "час, дата"
+        dt = datetime.strptime(pause_time, "%Y-%m-%d %H:%M:%S")
+        formatted_time = dt.strftime("%H:%M, %d.%m.%Y")
 
         await message.answer(
             f"⏸️ Зміна призупинена о {formatted_time}.",
@@ -56,24 +56,18 @@ async def pause_shift_handler(message: types.Message):
     else:
         await message.answer("⚠️ Помилка: зміна не була активною або вже на паузі.")
 
+
 @router.message(F.text == "▶️ Продовжити зміну")
 async def resume_shift_handler(message: types.Message):
     user_id = message.from_user.id
-    total_pause_time = resume_shift(user_id)  # Отримуємо тривалість паузи
+    pause_duration = resume_shift(user_id)  # Отримуємо тривалість паузи в секундах
 
-    if total_pause_time:
-        h, m, s = map(int, total_pause_time.split(":"))
-        total_pause_seconds = h * 3600 + m * 60 + s  # Переводимо в секунди
-
-        if total_pause_seconds >= 60 and total_pause_seconds < 3600:
-            time_text = f"{total_pause_seconds // 60} хвилин {total_pause_seconds % 60} секунд"
-        elif total_pause_seconds >= 3600:
-            time_text = f"{total_pause_seconds // 3600} годин {total_pause_seconds % 3600 // 60} хвилин {total_pause_seconds % 60} секунд"
-        else:
-            time_text = f"{total_pause_seconds} секунд"
+    if pause_duration is not None:
+        time_text = str(timedelta(seconds=pause_duration))
 
         await message.answer(
-            f"▶️ Зміна відновлена! Загальний час паузи: {time_text}.",
+            f"▶️ Зміна відновлена!\n"
+            f"⏸ Загальний час у паузі: {time_text}.",
             reply_markup=active_shift_menu
         )
     else:
@@ -98,8 +92,8 @@ async def end_shift_handler(message: types.Message, state: FSMContext):
     if len(start_time) == 8:  # Якщо тільки час (наприклад, '14:49:44')
         start_time = datetime.now().strftime("%Y-%m-%d") + " " + start_time  # Додаємо сьогоднішню дату
 
-    start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-    end_dt = datetime.strptime(end_time, "%d-%m-%Y %H:%M:%S")
+    start_dt = datetime.strptime(start_time, "%d.%m.%Y о %H:%M:%S")
+    end_dt = datetime.strptime(end_time, "%d.%m.%Y о %H:%M:%S")
 
     formatted_start = start_dt.strftime("%d.%m.%Y о %H:%M")
     formatted_end = end_dt.strftime("%d.%m.%Y о %H:%M")
