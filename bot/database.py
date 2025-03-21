@@ -15,6 +15,21 @@ def init_db():
             start_time TEXT NOT NULL,
             start_day TEXT NOT NULL,
             end_time TEXT
+            pause_time TEXT
+            total_time TEXT
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pauses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            shift_id INTEGER NOT NULL,
+            shift_start TEXT,
+            pause_start TEXT NOT NULL,
+            pause_end TEXT,
+            pause_duration INTEGER,
+            FOREIGN KEY (shift_id) REFERENCES shifts (id) ON DELETE CASCADE
         )
     """)
 
