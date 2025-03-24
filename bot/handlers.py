@@ -5,6 +5,7 @@ from aiogram.filters import Command
 from datetime import datetime, timedelta
 from keyboards import main_menu, active_shift_menu, paused_shift_menu
 from database import start_shift, end_shift, get_shifts, delete_last_shift, pause_shift, resume_shift
+from utils import format_time, calculate_end_time
 
 router = Router()
 
@@ -60,14 +61,18 @@ async def pause_shift_handler(message: types.Message):
 @router.message(F.text == "▶️ Продовжити зміну")
 async def resume_shift_handler(message: types.Message):
     user_id = message.from_user.id
-    pause_duration = resume_shift(user_id)  # Отримуємо тривалість паузи в секундах
+    result = resume_shift(user_id)  # Отримуємо тривалість паузи, залишковий час та час продовження
 
-    if pause_duration is not None:
-        time_text = str(timedelta(seconds=pause_duration))
+    if result is not None:
+        pause_duration, remaining_time, resume_time_str = result
+        time_text = format_time(pause_duration)
+        remaining_text = format_time(remaining_time)
+        estimated_end_time = calculate_end_time(remaining_time, resume_time_str)
 
         await message.answer(
             f"▶️ Зміна відновлена!\n"
-            f"⏸ Загальний час у паузі: {time_text}.",
+            f"⏸ Загальний час у паузі: {time_text}.\n"
+            f"🕒 Залишилося відпрацювати: {remaining_text} (орієнтовно закінчення о {estimated_end_time}).",
             reply_markup=active_shift_menu
         )
     else:
@@ -89,7 +94,7 @@ async def end_shift_handler(message: types.Message, state: FSMContext):
     start_time, end_time, total_time, pause_time = shift_info
 
     # Форматуємо час початку і завершення зміни
-    if len(start_time) == 8:  # Якщо тільки час (наприклад, '14:49:44')
+    if len(start_time) == 8:  
         start_time = datetime.now().strftime("%Y-%m-%d") + " " + start_time  # Додаємо сьогоднішню дату
 
     start_dt = datetime.strptime(start_time, "%d.%m.%Y о %H:%M:%S")

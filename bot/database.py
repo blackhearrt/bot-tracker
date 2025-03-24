@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 DB_NAME = "tracker.db"
 
@@ -93,16 +93,16 @@ def resume_shift(user_id):
     cursor = conn.cursor()
 
     # Отримуємо ID зміни
-    cursor.execute("SELECT id FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
+    cursor.execute("SELECT id, start_time, start_day FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
     shift = cursor.fetchone()
 
     if not shift:
         conn.close()
         return None  # Немає активної зміни
 
-    shift_id = shift[0]
+    shift_id, start_time, start_day = shift
 
-    # Отримуємо останню активну паузу (без записаного pause_end)
+    # Отримуємо останню активну паузу
     cursor.execute("SELECT id, pause_start FROM pauses WHERE shift_id = ? AND pause_end IS NULL", (shift_id,))
     pause = cursor.fetchone()
 
@@ -122,10 +122,24 @@ def resume_shift(user_id):
     cursor.execute("UPDATE pauses SET pause_end = ?, pause_duration = ? WHERE id = ?",
                    (pause_end, pause_duration, pause_id))
 
+    # Отримуємо всі паузи цієї зміни
+    cursor.execute("SELECT SUM(pause_duration) FROM pauses WHERE shift_id = ?", (shift_id,))
+    total_pause_time = cursor.fetchone()[0] or 0  # Якщо пауз не було, то 0
+
+    # Обчислюємо загальний час роботи без урахування пауз
+    now = datetime.now()
+    start_datetime_str = f"{start_day} {start_time}"
+    start_time_dt = datetime.strptime(start_datetime_str, "%Y-%m-%d %H:%M:%S")
+    
+    total_work_time = int((now - start_time_dt).total_seconds()) - total_pause_time
+
+    # Обчислюємо, скільки залишилося до 5 годин (18000 секунд)
+    remaining_time = max(18000 - total_work_time, 0)
+
     conn.commit()
     conn.close()
 
-    return pause_duration  # Повертаємо тривалість паузи в секундах
+    return pause_duration, remaining_time, pause_end  # Повертаємо час закінчення паузи
 
 
 def end_shift(user_id):
