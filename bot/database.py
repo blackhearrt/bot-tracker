@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from datetime import datetime, timedelta, date
 
 DB_NAME = "tracker.db"
@@ -36,6 +37,12 @@ def init_db():
     conn.commit()
     conn.close()
     print("База даних ініціалізована!")
+
+if os.path.exists(DB_NAME):
+    print("Файл БД знайдено на сервері.")
+else:
+    print("⚠️ Файл БД відсутній на сервері!")
+
 
 def check_columns():
     conn = sqlite3.connect(DB_NAME)  
