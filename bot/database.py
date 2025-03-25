@@ -37,6 +37,17 @@ def init_db():
     conn.close()
     print("База даних ініціалізована!")
 
+def check_columns():
+    conn = sqlite3.connect("tracker.db")  
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(shifts);")
+    columns = cursor.fetchall()
+    conn.close()
+    return columns
+
+print("Таблиця shifts містить такі стовпці:")
+for column in check_columns():
+    print(column)
 
 def start_shift(user_id):
     """Записує початок зміни з днем тижня."""
