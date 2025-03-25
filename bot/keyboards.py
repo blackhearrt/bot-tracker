@@ -5,7 +5,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 main_menu = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="⏳ Почати зміну")],
-        [KeyboardButton(text="📊 Переглянути зміни"), KeyboardButton(text="🗑 Видалити зміну")]
+        [KeyboardButton(text="📊 Переглянути зміни"), KeyboardButton(text="🗑 Видалити зміну")],
     ],
     resize_keyboard=True
 )
@@ -13,7 +13,8 @@ main_menu = ReplyKeyboardMarkup(
 # Меню під час активної зміни
 active_shift_menu = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="⏸ Призупинити зміну"), KeyboardButton(text="✅ Завершити зміну")], [KeyboardButton(text="🔙 Назад")]
+        [KeyboardButton(text="⏸ Призупинити зміну"), KeyboardButton(text="✅ Завершити зміну")], 
+        [KeyboardButton(text="🔙 Назад")], [KeyboardButton(text="⏳ Перевірити залишок часу для відпрацювання")]
     ],
     resize_keyboard=True
 )
@@ -21,7 +22,8 @@ active_shift_menu = ReplyKeyboardMarkup(
 # Меню, коли зміна призупинена
 paused_shift_menu = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="▶️ Продовжити зміну")], [KeyboardButton(text="🔙 Назад")]
+        [KeyboardButton(text="▶️ Продовжити зміну")], [KeyboardButton(text="🔙 Назад")],
+        [KeyboardButton(text="⏳ Перевірити залишок часу для відпрацювання")]
     ],
     resize_keyboard=True
 )

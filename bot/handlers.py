@@ -4,8 +4,8 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from datetime import datetime, timedelta
 from keyboards import main_menu, active_shift_menu, paused_shift_menu
-from database import start_shift, end_shift, get_shifts, delete_last_shift, pause_shift, resume_shift
-from utils import format_time, calculate_end_time
+from database import start_shift, end_shift, get_shifts, delete_last_shift, pause_shift, resume_shift, get_shift_status
+from utils import format_time, calculate_end_time, get_remaining_time
 
 router = Router()
 
@@ -78,6 +78,34 @@ async def resume_shift_handler(message: types.Message):
     else:
         await message.answer("⚠️ Помилка: немає активної зміни або зміна не була на паузі.")
 
+@router.message(F.text == "⏳ Перевірити залишок часу для відпрацювання")
+async def check_remaining_time_handler(message: types.Message):
+    """Перевіряє залишок часу до 5 і 10 годин роботи."""
+    user_id = message.from_user.id
+    remaining_time = get_remaining_time(user_id)
+
+    if remaining_time is None:
+        await message.answer("❌ У вас немає активної зміни!", reply_markup=main_menu)
+        return
+
+    # Отримуємо статус зміни (active / paused)
+    shift_status = get_shift_status(user_id)
+
+    # Визначаємо, яке меню повертати
+    reply_markup = active_shift_menu if shift_status == "active" else paused_shift_menu
+
+    time_to_5h, time_to_10h = remaining_time
+
+    def format_time(seconds):
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        return f"{hours} год {minutes} хв" if seconds > 0 else "⏳ Вже відпрацьовано"
+
+    await message.answer(
+        f"⏳ Час до 5 годин: {format_time(time_to_5h)}\n"
+        f"⏳ Час до 10 годин: {format_time(time_to_10h)}",
+        reply_markup=reply_markup
+    )
 
 
 @router.message(F.text == "✅ Завершити зміну")

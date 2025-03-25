@@ -141,6 +141,27 @@ def resume_shift(user_id):
 
     return pause_duration, remaining_time, pause_end  # Повертаємо час закінчення паузи
 
+def get_shift_status(user_id):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Шукаємо активну зміну
+    cursor.execute("SELECT id FROM shifts WHERE user_id = ? AND end_time IS NULL", (user_id,))
+    shift = cursor.fetchone()
+
+    if not shift:
+        conn.close()
+        return None  # Зміни немає
+
+    shift_id = shift[0]
+
+    # Перевіряємо, чи є незакрита пауза
+    cursor.execute("SELECT id FROM pauses WHERE shift_id = ? AND pause_end IS NULL", (shift_id,))
+    pause = cursor.fetchone()
+
+    conn.close()
+
+    return "paused" if pause else "active"
 
 def end_shift(user_id):
     """Завершує зміну та рахує загальний час без пауз."""
