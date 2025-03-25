@@ -38,16 +38,6 @@ def init_db():
     conn.close()
     print("База даних ініціалізована!")
 
-if not os.path.exists(DB_NAME):
-    print("⚠️ Файл БД відсутній! Бот створить новий порожній файл.")
-else:
-    print("✅ Файл БД знайдено.")
-
-if not os.path.exists("tracker.db"):
-    print("⚠️ Файл БД відсутній! Бот створить новий порожній файл.")
-else:
-    print("✅ Файл БД знайдено.")
-
 def check_columns():
     conn = sqlite3.connect(DB_NAME)  
     cursor = conn.cursor()
