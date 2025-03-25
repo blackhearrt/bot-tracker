@@ -38,7 +38,7 @@ def init_db():
     print("База даних ініціалізована!")
 
 def check_columns():
-    conn = sqlite3.connect("tracker.db")  
+    conn = sqlite3.connect(DB_NAME)  
     cursor = conn.cursor()
     cursor.execute("PRAGMA table_info(shifts);")
     columns = cursor.fetchall()
