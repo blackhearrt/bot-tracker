@@ -17,7 +17,7 @@ def calculate_end_time(remaining_seconds, resume_time_str):
     return estimated_end_time.strftime("%H:%M:%S")
 
 def get_remaining_time(user_id):
-    """Обчислює, скільки часу залишилось до 5 або 10 годин роботи."""
+    """Обчислює, скільки часу залишилось до 5 або 10 годин роботи, і коли приблизно завершиться зміна."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -51,4 +51,8 @@ def get_remaining_time(user_id):
     target_5h = max(0, 5 * 3600 - worked_time)
     target_10h = max(0, 10 * 3600 - worked_time)
 
-    return target_5h, target_10h
+    # Розраховуємо приблизний час завершення зміни
+    estimated_end_5h = (current_time + timedelta(seconds=target_5h)).strftime("%H:%M:%S") if target_5h > 0 else "Вже відпрацьовано"
+    estimated_end_10h = (current_time + timedelta(seconds=target_10h)).strftime("%H:%M:%S") if target_10h > 0 else "Вже відпрацьовано"
+
+    return target_5h, target_10h, estimated_end_5h, estimated_end_10h

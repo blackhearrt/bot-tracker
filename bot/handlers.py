@@ -80,7 +80,7 @@ async def resume_shift_handler(message: types.Message):
 
 @router.message(F.text == "⏳ Перевірити залишок часу для відпрацювання")
 async def check_remaining_time_handler(message: types.Message):
-    """Перевіряє залишок часу до 5 і 10 годин роботи."""
+    """Перевіряє залишок часу до 5 і 10 годин роботи та орієнтовний час завершення зміни."""
     user_id = message.from_user.id
     remaining_time = get_remaining_time(user_id)
 
@@ -94,7 +94,7 @@ async def check_remaining_time_handler(message: types.Message):
     # Визначаємо, яке меню повертати
     reply_markup = active_shift_menu if shift_status == "active" else paused_shift_menu
 
-    time_to_5h, time_to_10h = remaining_time
+    time_to_5h, time_to_10h, estimated_end_5h, estimated_end_10h = remaining_time
 
     def format_time(seconds):
         hours = seconds // 3600
@@ -102,11 +102,12 @@ async def check_remaining_time_handler(message: types.Message):
         return f"{hours} год {minutes} хв" if seconds > 0 else "⏳ Вже відпрацьовано"
 
     await message.answer(
-        f"⏳ Час до 5 годин: {format_time(time_to_5h)}\n"
-        f"⏳ Час до 10 годин: {format_time(time_to_10h)}",
+        f"⏳ Час до 5 годин: {format_time(time_to_5h)} \n"
+        f"🏁 Орієнтовне закінчення (5 год): {estimated_end_5h} \n\n"
+        f"⏳ Час до 10 годин: {format_time(time_to_10h)} \n"
+        f"🏁 Орієнтовне закінчення (10 год): {estimated_end_10h}",
         reply_markup=reply_markup
     )
-
 
 @router.message(F.text == "✅ Завершити зміну")
 async def end_shift_handler(message: types.Message, state: FSMContext):
