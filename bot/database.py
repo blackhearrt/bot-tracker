@@ -17,8 +17,8 @@ def init_db():
             shift_number INTEGER NOT NULL,
             start_time TEXT NOT NULL,
             start_day TEXT NOT NULL,
-            end_time TEXT
-            pause_time TEXT
+            end_time TEXT,
+            pause_time TEXT,
             total_time TEXT
         )
     """)
@@ -54,7 +54,7 @@ if DEBUG_MODE:
         print(column)
 
 def start_shift(user_id):
-    """Записує початок зміни з днем тижня."""
+    """Записує початок зміни з днем тижня та номером зміни."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -62,13 +62,16 @@ def start_shift(user_id):
     start_time = now.strftime("%H:%M:%S")
     start_day = now.strftime("%Y-%m-%d") 
 
-    cursor.execute("INSERT INTO shifts (user_id, start_time, start_day) VALUES (?, ?, ?)", 
-                   (user_id, start_time, start_day))
+    # Отримуємо поточний номер зміни для цього користувача
+    cursor.execute("SELECT COUNT(*) FROM shifts WHERE user_id = ?", (user_id,))
+    shift_count = cursor.fetchone()[0] + 1  # Новий номер зміни
+
+    cursor.execute("INSERT INTO shifts (user_id, shift_number, start_time, start_day) VALUES (?, ?, ?, ?)", 
+                   (user_id, shift_count, start_time, start_day))
 
     conn.commit()
     conn.close()
     return start_time, start_day
-
 def pause_shift(user_id):
     """Призупиняє зміну, додаючи запис про початок паузи в таблицю pauses."""
     conn = sqlite3.connect(DB_NAME)
