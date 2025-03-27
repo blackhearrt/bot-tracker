@@ -1,13 +1,19 @@
+import logging
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message
 from aiogram.filters import Command
 from datetime import datetime, timedelta
-from keyboards import main_menu, active_shift_menu, paused_shift_menu
-from database import start_shift, end_shift, get_shifts, delete_last_shift, pause_shift, resume_shift, get_shift_status
+from keyboards import main_menu, active_shift_menu, paused_shift_menu, manual_add_shift_menu
+from database import *
+from config import DEBUG_MODE
 from utils import format_time, calculate_end_time, get_remaining_time
 
 router = Router()
+
+class ManualShiftState(StatesGroup):
+    waiting_for_manual_shift = State()
 
 @router.message(F.text == "/start") 
 async def start_command(message: Message):
@@ -168,6 +174,75 @@ async def end_shift_handler(message: types.Message, state: FSMContext):
         f"⏸ Загальний час у паузі: {pause_time_str}.",
         reply_markup=main_menu
     )
+
+@router.message(F.text == "➕ Додати зміну вручну")
+async def manual_add_shift_start(message: types.Message, state: FSMContext):
+    """Запитує в користувача дату та час початку/кінця зміни"""
+    if DEBUG_MODE:
+        print(f"[INFO] Користувач {message.from_user.id} натиснув '➕ Додати зміну вручну'")
+
+    await message.answer(
+        "📅 Введіть дату та час початку/кінця зміни у форматі:\n"
+        "**дд.мм.рр гг:хх:сс / дд.мм.рр гг:хх:сс**",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+    await state.set_state(ManualShiftState.waiting_for_manual_shift)
+
+
+@router.message(ManualShiftState.waiting_for_manual_shift)
+async def manual_add_shift_process(message: types.Message, state: FSMContext):
+    """Обробляє введену зміну і передає в базу"""
+    if DEBUG_MODE:
+        print(f"[INFO] Отримано повідомлення від {message.from_user.id}: {message.text}")
+
+    try:
+        # Парсимо введені дані
+        data = message.text.strip().split(" / ")
+        if DEBUG_MODE:    
+            print(f"[DEBUG] Розбите повідомлення: {data}")
+
+        if len(data) != 2:
+            raise ValueError("Невірний формат! Очікується два значення, розділені ' / '.")
+
+        start_str, end_str = data
+
+        # Конвертуємо строки в datetime
+        start_dt = datetime.strptime(start_str, "%d.%m.%y %H:%M:%S")
+        end_dt = datetime.strptime(end_str, "%d.%m.%y %H:%M:%S")
+        if DEBUG_MODE:
+            print(f"[DEBUG] Отримано дати: {start_dt} - {end_dt}")
+
+        if start_dt >= end_dt:
+            raise ValueError("Час початку має бути раніше за час завершення!")
+
+        user_id = message.from_user.id
+
+        # Викликаємо функцію додавання зміни в БД
+        if DEBUG_MODE:
+            print(f"[INFO] Додаємо зміну в БД для user_id={user_id}: {start_dt} - {end_dt}")
+        shift_number = await add_manual_shift(user_id, start_dt, end_dt)
+
+        if DEBUG_MODE:
+            print(f"[INFO] Успішно додано зміну №{shift_number}")
+
+        await message.answer(
+            f"✅ Нова зміна *№{shift_number}* успішно додана!\n"
+            f"📅 Початок: {start_dt.strftime('%d.%m.%y о %H:%M:%S')}\n"
+            f"🏁 Закінчення: {end_dt.strftime('%d.%m.%y о %H:%M:%S')}",
+            reply_markup=manual_add_shift_menu
+        )
+
+    except ValueError as e:
+        if DEBUG_MODE:
+            print(f"[WARNING] Користувач ввів неправильні дані: {e}")
+        await message.answer(f"❌ Помилка: {e}\nСпробуйте ще раз!")
+
+    except Exception as e:
+        if DEBUG_MODE:
+            logging.exception("[ERROR] Виникла невідома помилка при додаванні зміни!")
+        await message.answer("⚠️ Сталася невідома помилка! Спробуйте ще раз.")
+
+    await state.clear()
 
 @router.message(F.text == "📊 Переглянути зміни")
 async def shifts_handler(message: types.Message, state: FSMContext):

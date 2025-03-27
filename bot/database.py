@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from config import DEBUG_MODE
 from datetime import datetime, timedelta, date
 
 DB_NAME = "tracker.db"
@@ -13,6 +14,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS shifts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
+            shift_number INTEGER NOT NULL,
             start_time TEXT NOT NULL,
             start_day TEXT NOT NULL,
             end_time TEXT
@@ -38,17 +40,18 @@ def init_db():
     conn.close()
     print("База даних ініціалізована!")
 
-def check_columns():
-    conn = sqlite3.connect(DB_NAME)  
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA table_info(shifts);")
-    columns = cursor.fetchall()
-    conn.close()
-    return columns
+if DEBUG_MODE:
+    def check_columns():
+        conn = sqlite3.connect(DB_NAME)  
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(shifts);")
+        columns = cursor.fetchall()
+        conn.close()
+        return columns
 
-print("Таблиця shifts містить такі стовпці:")
-for column in check_columns():
-    print(column)
+    print("Таблиця shifts містить такі стовпці:")
+    for column in check_columns():
+        print(column)
 
 def start_shift(user_id):
     """Записує початок зміни з днем тижня."""
@@ -224,6 +227,52 @@ def end_shift(user_id):
     end_dt_formatted = end_dt.strftime("%d.%m.%Y о %H:%M:%S")
 
     return start_dt_formatted, end_dt_formatted, total_time, pause_time
+
+async def add_manual_shift(user_id: int, start_dt: datetime, end_dt: datetime) -> int:
+    """Додає зміну вручну та коригує нумерацію змін у БД"""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Отримуємо всі зміни користувача, відсортовані за датою
+    cursor.execute(
+        "SELECT id, start_day FROM shifts WHERE user_id = ? ORDER BY start_day ASC",
+        (user_id,)
+    )
+    shifts = cursor.fetchall()
+
+    # Визначаємо номер нової зміни
+    new_shift_number = 1
+    for i, (shift_id, shift_date) in enumerate(shifts, start=1):
+        if start_dt.date().isoformat() > shift_date:
+            new_shift_number = i + 1
+
+    # Вставляємо нову зміну у правильному порядку
+    cursor.execute(
+        """
+        INSERT INTO shifts (user_id, shift_number, start_day, start_time, end_time)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (user_id, new_shift_number, start_dt.date().isoformat(), start_dt.time().isoformat(), end_dt.time().isoformat())
+    )
+
+    # Перенумеровуємо всі зміни у правильному порядку
+    cursor.execute(
+        """
+        UPDATE shifts
+        SET shift_number = (
+            SELECT COUNT(*) 
+            FROM shifts AS s2 
+            WHERE shifts.user_id = s2.user_id AND shifts.start_day >= s2.start_day
+        )
+        WHERE user_id = ?
+        """,
+        (user_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return new_shift_number
 
 def get_shifts(user_id):
     """Отримуємо список змін користувача."""
