@@ -55,6 +55,10 @@ cover/
 *.mo
 *.pot
 
+# Ігноруємо SQLite базу даних
+*.sqlite3
+*.db
+
 # Django stuff:
 *.log
 local_settings.py
