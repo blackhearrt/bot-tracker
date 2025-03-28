@@ -53,6 +53,26 @@ if DEBUG_MODE:
     for column in check_columns():
         print(column)
 
+async def start_shift_db(user_id):
+    """Запускає зміну та записує її в базу даних."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Перевіряємо, чи є активна зміна
+    cursor.execute("SELECT COUNT(*) FROM shifts WHERE user_id = ?", (user_id,))
+    shift_count = cursor.fetchone()[0] + 1  # Номер зміни
+
+    start_time = datetime.now().strftime("%H:%M:%S")
+    start_day = datetime.now().strftime("%Y-%m-%d")
+
+    cursor.execute("INSERT INTO shifts (user_id, shift_number, start_time, start_day) VALUES (?, ?, ?, ?)",
+                   (user_id, shift_count, start_time, start_day))
+
+    conn.commit()
+    conn.close()
+
+    return start_time, start_day
+
 def start_shift(user_id):
     """Записує початок зміни з днем тижня та номером зміни."""
     conn = sqlite3.connect(DB_NAME)

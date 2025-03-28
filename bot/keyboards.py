@@ -1,4 +1,4 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 
 
 # Головне меню перед початком зміни
@@ -6,6 +6,14 @@ main_menu = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="⏳ Почати зміну")], [KeyboardButton(text="📊 Переглянути зміни")], 
         [KeyboardButton(text="➕ Додати зміну вручну")], [KeyboardButton(text="🗑 Видалити зміну")]
+    ],
+    resize_keyboard=True
+)
+
+start_shift_menu = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🕒 Почати зараз")], 
+        [KeyboardButton(text="✍️ Ввести вручну")]
     ],
     resize_keyboard=True
 )
