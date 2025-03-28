@@ -2,10 +2,10 @@ import logging
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from datetime import datetime, timedelta
-from keyboards import main_menu, active_shift_menu, paused_shift_menu, manual_add_shift_menu
+from keyboards import main_menu, active_shift_menu, paused_shift_menu, manual_add_shift_menu, start_shift_menu
 from database import *
 from config import DEBUG_MODE
 from utils import format_time, calculate_end_time, get_remaining_time
@@ -14,6 +14,9 @@ router = Router()
 
 class ManualShiftState(StatesGroup):
     waiting_for_manual_shift = State()
+
+class ShiftState(StatesGroup):
+    waiting_for_time = State()
 
 @router.message(F.text == "/start") 
 async def start_command(message: Message):
@@ -35,17 +38,45 @@ async def back_button_handler(message: Message, state: FSMContext):
     # Оновлюємо історію, щоб при наступному "Назад" не повертатися в той самий пункт
     await state.update_data(previous_menu="main")
 
-@router.message(F.text == "⏳ Почати зміну")
-async def start_shift_handler(message: types.Message, state: FSMContext):
-    """Обробник початку зміни."""
+@router.message(lambda message: message.text == "⏳ Почати зміну")
+async def start_shift(message: types.Message):
+    await message.answer("Як ви хочете розпочати зміну?", reply_markup=start_shift_menu)
+
+@router.message(lambda message: message.text == "🕒 Почати зараз")
+async def start_shift_now(message: types.Message, state: FSMContext):
+    """Запускає зміну одразу."""
     user_id = message.from_user.id
-    start_time, start_day = start_shift(user_id)
-    
+    start_time, start_day = await start_shift_db(user_id)  # Виклик БД замість хендлера
+
     if start_time:
         await state.update_data(previous_menu="main")
         await message.answer(f"✅ Зміна розпочата!\n📅 День: {start_day}\n🕒 Час: {start_time}", reply_markup=active_shift_menu)
     else:
         await message.answer("❌ Ви вже маєте активну зміну!", reply_markup=active_shift_menu)
+
+@router.message(lambda message: message.text == "✍️ Ввести вручну")
+async def start_shift_manual(message: types.Message, state: FSMContext):
+    """Запитує у користувача дату та час вручну."""
+    await message.answer("📝 Введіть дату та час у форматі **YYYY-MM-DD HH:MM** (наприклад: `2025-03-28 09:30`).")
+    await state.set_state(ShiftState.waiting_for_time)
+
+@router.message(ShiftState.waiting_for_time)
+async def process_manual_time(message: types.Message, state: FSMContext):
+    """Перевіряє введений час і створює зміну з вказаним часом."""
+    user_id = message.from_user.id
+    try:
+        # Отримуємо введений користувачем час
+        custom_datetime = datetime.strptime(message.text, "%Y-%m-%d %H:%M")
+        start_time = custom_datetime.strftime("%H:%M:%S")
+        start_day = custom_datetime.strftime("%Y-%m-%d")
+
+        # Запускаємо зміну з кастомним часом
+        start_shift_db(user_id, start_time, start_day)
+
+        await message.answer(f"✅ Зміна розпочата!\n📅 День: {start_day}\n🕒 Час: {start_time}", reply_markup=active_shift_menu)
+        await state.clear()
+    except ValueError:
+        await message.answer("❌ Невірний формат! Введіть у форматі `YYYY-MM-DD HH:MM`.")
 
 @router.message(F.text == "⏸ Призупинити зміну")
 async def pause_shift_handler(message: types.Message):
