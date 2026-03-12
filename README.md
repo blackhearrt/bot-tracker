@@ -66,9 +66,9 @@ Main concepts used in the project:
 
 ## Installation
 <details>
-<summary>Step-by-step</summary>  
+<summary>Step-by-step</summary>    
   
-**Clone the repository:**  
+  **Clone the repository:**  
 ```bash
 git clone https://github.com/blackhearrt/time-tracker-bot
 cd time-tracker-bot
