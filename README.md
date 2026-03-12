@@ -1,67 +1,103 @@
-⏳ Telegram-бот для трекінгу робочого часу
+# Telegram Time Tracker Bot
 
-📌 Опис:
+Telegram bot for tracking work sessions and recording working hours.
 
-Цей Telegram-бот допомагає користувачам відстежувати робочий час, ставити зміни на паузу, завершувати їх та переглядати статистику. 
-Ідеальне рішення для фрілансерів, гейм-тестерів та всіх, хто хоче вести точний облік відпрацьованих годин.
+The bot allows users to start and pause work sessions, finish shifts and review recorded work statistics.
 
-🚀 Функціонал:
+The project demonstrates building a **stateful Telegram bot with persistent storage** using Python.
 
-✅ Початок зміни – розпочати зміну одним натисканням.
+---
 
-⏸ Пауза зміни – можна зробити перерву та потім продовжити.
+## Project Goal
 
-✅ Завершення зміни – фіксація відпрацьованого часу.
+The purpose of this project is to create a simple but reliable system for tracking work sessions through Telegram.
 
-📊 Перегляд змін – список усіх записаних змін.
+Typical use cases:
 
-🗑 Видалення змін – видалення непотрібних записів.
+• freelancers tracking working hours  
+• testers logging work sessions  
+• developers monitoring time spent on tasks  
 
-⏳ Перевірка залишку часу – у будь-який момент можна перевірити скільки залишилося відпрацювати часу (для лінивих та нетерплячих :)).
+The project also serves as a practical example of building **Telegram automation tools with Python**.
 
-🛠 Технології:
+---
 
-Python 3.10+
+## Features
 
-Aiogram 3 (асинхронна робота з Telegram API)
+• start a work session  
+• pause and resume sessions  
+• finish shifts and calculate total time worked  
+• view recorded shifts  
+• delete incorrect entries  
+• check remaining work time during a shift  
 
-SQLite3 (збереження даних про зміни)
+The bot stores all session data locally using a lightweight database.
 
-🏗 Запуск проєкту:
+---
 
-🔹 1. Встановлення залежностей:
+## Tech Stack
 
-	pip install -r requirements.txt
+Python
 
-🔹 2. Створення файлу конфігурації:
+Libraries and tools:
 
-Створи файл .env у кореневій папці та додай туди токен бота:
+- aiogram 3
+- asyncio
+- SQLite3
 
-	BOT_TOKEN=*token*
+Main concepts used in the project:
 
-🔹 3. Запуск бота:
+• asynchronous Telegram bot architecture  
+• session state management  
+• database persistence  
+• command handlers and routing  
 
-	python main.py
+---
 
+## How It Works
 
-🔄 Подальші оновлення
+1. User starts a work session through the Telegram bot.
+2. Session state is stored in the database.
+3. User can pause or resume the session.
+4. When the shift ends, total worked time is calculated and saved.
+5. Users can view their work history or delete incorrect records.
 
-🚀 В майбутньому можливе додавання:
+---
 
-🔹 Відправки нагадувань про завершення зміни
+## Installation
 
-🔹 Автоматичних звітів за день/тиждень
+Clone the repository:
+git clone https://github.com/blackhearrt/time-tracker-bot
+cd time-tracker-bot
 
-🔹 Інтеграції з Google Sheets
+Install dependencies:
+pip install -r requirements.txt
 
+Create a .env file in the project root and add your Telegram bot token:
+BOT_TOKEN=your_token_here
 
-🎯 Автор
+Run the bot:
+python main.py
 
-👨‍💻 Розробник: [blackh3arrt]
+---
 
-📌 GitHub репозиторій: [https://github.com/blackhearrt]
+## Future Improvements
 
+Planned features:
 
-🔥 Якщо цей бот тобі сподобався, не забудь поставити зірочку ⭐ на GitHub! 🚀
+• automatic reminders to finish shifts  
+• daily / weekly work reports  
+• export of statistics  
+• Google Sheets integration  
+• improved analytics of work sessions  
 
+---
+
+## Author
+
+Serhii Mamonov
+
+Python developer transitioning into **Data Analytics and automation**.
+
+Background in biotechnology and analytical workflows.
 
