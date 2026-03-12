@@ -79,7 +79,7 @@ cd time-tracker-bot
 pip install -r requirements.txt
 ```  
 **Create a .env file in the project root and add your Telegram bot token:**
-```bash
+```python
 BOT_TOKEN=your_token_here
 ```  
 **Run the bot:**
