@@ -66,6 +66,7 @@ Main concepts used in the project:
 
 ## Installation
 <details>
+<summary>Step-by-step</summary>
   
 Clone the repository:  
 ```bash
