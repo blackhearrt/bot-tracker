@@ -66,17 +66,17 @@ Main concepts used in the project:
 
 ## Installation
 
-Clone the repository:
+Clone the repository:  
 git clone https://github.com/blackhearrt/time-tracker-bot
 cd time-tracker-bot
 
-Install dependencies:
+Install dependencies:  
 pip install -r requirements.txt
 
-Create a .env file in the project root and add your Telegram bot token:
+Create a .env file in the project root and add your Telegram bot token:  
 BOT_TOKEN=your_token_here
 
-Run the bot:
+Run the bot:  
 python main.py
 
 ---
