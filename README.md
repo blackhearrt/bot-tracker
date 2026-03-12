@@ -66,6 +66,7 @@ Main concepts used in the project:
 
 ## Installation
 <details>
+  
 Clone the repository:  
 ```bash
 git clone https://github.com/blackhearrt/time-tracker-bot
@@ -83,7 +84,8 @@ Run the bot:
 ```bash
 python main.py
 ```
-</details>
+</details>  
+
 ---
 
 ## Future Improvements
